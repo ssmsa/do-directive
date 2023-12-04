@@ -1,5 +1,5 @@
 API_GOLANG_PATH:=../../05-example-web-application/api-golang/
-DOCKERHUB_REPO:=sidpalas/devops-directive-docker-course-api-golang
+DOCKERHUB_REPO:=sds-registry.celloscope.org/sds/do-directive-api-golang
 
 N?=0
 .PHONY: build-N

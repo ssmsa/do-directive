@@ -1,8 +1,16 @@
 version: '3.7'
 services:
   client-react-nginx:
-    image: sidpalas/devops-directive-docker-course-client-react-nginx:5
+    image: sds-registry.celloscope.org/sds/do-directive-client-react-nginx:5
     deploy:
+    # deploy section tells the Docker Swarm how we want to manage this application
+    # mode: replicated means we can run 1 or more copies of this application
+    # update_config tells how we want to handle new version
+    # start-first specifies when we start the new version, we wait for it to become healthy and then transfer traffic over to it
+    # start-first minimises downtime between versions
+    # init tells Docker to run a seperate init process, inside the container other than the application
+    # healthcheck script is executed by Docker makes sure the service is healthy, if its not it'll restart the service
+    # healthcheck also ensure, when we bring up new version, checked that it is healthy before we swtich traffic over to it
       mode: replicated
       replicas: 1
       update_config:
@@ -19,17 +27,20 @@ services:
       retries: 3
       start_period: 10s
   api-node:
-    image: sidpalas/devops-directive-docker-course-api-node:9
-    read_only: true
+    image: sds-registry.celloscope.org/sds/do-directive-api-node:9
+    read_only: true # for security measure, restricts it to do, since it doesn't need to write anything to the file system
+    extra_hosts: # extra_hosts is used so that hostname was specified in docker secret database_url instead of database server's IP
+      - "sds-db:172.16.3.31"
+      - "sds-db.dcl.net:172.16.3.31"
     deploy:
       mode: replicated
       replicas: 1
       update_config:
         order: start-first
     init: true
-    environment:
+    environment: # tells the application where in the filesystem the secret is mounted
       - DATABASE_URL_FILE=/run/secrets/database-url
-    secrets:
+    secrets: # way to provide the password to the database, so that it can be accessed during runtime, and don't need to store the sensitive credentials in git or in these configuration
       - database-url
     networks:
       - frontend
@@ -41,8 +52,11 @@ services:
       retries: 3
       start_period: 10s
   api-golang:
-    image: sidpalas/devops-directive-docker-course-api-golang:8
+    image: sds-registry.celloscope.org/sds/do-directive-api-golang:8
     read_only: true
+    extra_hosts: # extra_hosts is used so that hostname was specified in docker secret database_url instead of database server's IP
+      - "sds-db:172.16.3.31"
+      - "sds-db.dcl.net:172.16.3.31"
     deploy:
       mode: replicated
       replicas: 2
@@ -62,29 +76,29 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
-  db:
-    image: postgres:15.1-alpine
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    environment:
-      - PGUSER=postgres
-      - POSTGRES_PASSWORD_FILE=/run/secrets/postgres-passwd
-    secrets:
-      - postgres-passwd
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - backend
-volumes:
-  pgdata:
+  # db:
+  #   image: postgres:15.1-alpine
+  #   volumes:
+  #     - pgdata:/var/lib/postgresql/data
+  #   environment:
+  #     - PGUSER=postgres
+  #     - POSTGRES_PASSWORD_FILE=/run/secrets/postgres-passwd
+  #   secrets:
+  #     - postgres-passwd
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #   networks:
+  #     - backend
+# volumes:
+#   pgdata:
 networks:
   frontend:
   backend:
 secrets:
   database-url:
     external: true
-  postgres-passwd:
-    external: true
+  # postgres-passwd:
+  #   external: true
